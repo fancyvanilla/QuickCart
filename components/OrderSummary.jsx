@@ -1,17 +1,48 @@
-import { addressDummyData } from "@/assets/assets";
 import { useAppContext } from "@/context/AppContext";
-import React, { useEffect, useState } from "react";
+import axios from "axios";
+import React, { useEffect, useState,useRef } from "react";
+import toast from "react-hot-toast";
 
 const OrderSummary = () => {
-
-  const { currency, router, getCartCount, getCartAmount } = useAppContext()
+  const dropdownRef = useRef(null);
+  const { currency, router, getCartCount, getCartAmount,getToken,user } = useAppContext()
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [userAddresses, setUserAddresses] = useState([]);
+ 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }  
+  }, [isDropdownOpen]);
 
   const fetchUserAddresses = async () => {
-    setUserAddresses(addressDummyData);
+    try {
+      const token = await getToken();
+      const {data}=await axios.get('/api/user/get-address', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }});
+      if (data.success) {
+        setUserAddresses(data.addresses);
+        if (data.addresses.length > 0) {
+          setSelectedAddress(data.addresses[0]); 
+        }
+      }else{
+        console.error(data.message);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching addresses:", error);
+      toast.error("Failed to fetch addresses. Please try again later.");
+    }
   }
 
   const handleAddressSelect = (address) => {
@@ -24,8 +55,8 @@ const OrderSummary = () => {
   }
 
   useEffect(() => {
-    fetchUserAddresses();
-  }, [])
+    if (user) fetchUserAddresses();
+  }, [user])
 
   return (
     <div className="w-full md:w-96 bg-gray-500/5 p-5">
@@ -38,7 +69,7 @@ const OrderSummary = () => {
           <label className="text-base font-medium uppercase text-gray-600 block mb-2">
             Select Address
           </label>
-          <div className="relative inline-block w-full text-sm border">
+          <div className="relative inline-block w-full text-sm border" ref={dropdownRef}>
             <button
               className="peer w-full text-left px-4 pr-2 py-2 bg-white text-gray-700 focus:outline-none"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}

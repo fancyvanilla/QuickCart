@@ -2,6 +2,10 @@
 import React, { useState } from "react";
 import { assets } from "@/assets/assets";
 import Image from "next/image";
+import { useAuth } from "@clerk/clerk-react";
+import axios from "axios";
+import { toast } from "react-hot-toast";
+import { useAppContext } from "@/context/AppContext";
 
 const AddProduct = () => {
 
@@ -11,15 +15,50 @@ const AddProduct = () => {
   const [category, setCategory] = useState('Earphone');
   const [price, setPrice] = useState('');
   const [offerPrice, setOfferPrice] = useState('');
+  const { getToken } = useAuth();
+  const {router}=useAppContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('description', description);
+    formData.append('category', category);
+    formData.append('price', price);
+    formData.append('offerPrice', offerPrice);
+    files.forEach((file, _) => {
+      if (file) {
+        formData.append(`images`, file);
+      }
+    });
+    try {
+      const token=await getToken();
+      const { data}=await axios.post('/api/product/add', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+    })
+    if (data.success)
+      {
+        toast.success(data.message);
+        setFiles([]);
+        setName('');
+        setDescription('');
+        setCategory('Earphone');
+        setPrice('');
+        setOfferPrice('');
+      } else{
+        toast.error(data.message);
+      }     
+    } catch (error) {
+      console.error("Error adding product:", error);
+      toast.error("Failed to add product. Please try again.");
+    }
   };
-
   return (
-    <div className="flex-1 min-h-screen flex flex-col justify-between">
-      <form onSubmit={handleSubmit} className="md:p-10 p-4 space-y-5 max-w-lg">
+    <div className="flex-1 min-h-screen flex flex-col">
+      <form onSubmit={handleSubmit} className="md:px-10 px-4 py-4 space-y-5 max-w-lg">
         <div>
           <p className="text-base font-medium">Product Image</p>
           <div className="flex flex-wrap items-center gap-3 mt-2">
@@ -128,6 +167,13 @@ const AddProduct = () => {
           ADD
         </button>
       </form>
+      <div className="md:px-10 px-4 ">
+         <h2 className="mb-4 px-2 font-medium rounded text-xl">or</h2> 
+         <button className="bg-green-500 px-8 py-2.5 text-white font-medium rounded"
+         onClick={() => router.push('/seller/add-many')}>
+          ADD MANY PRODUCTS
+          </button>
+         </div>
       {/* <Footer /> */}
     </div>
   );
